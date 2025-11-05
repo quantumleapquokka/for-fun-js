@@ -12,6 +12,7 @@ function App() {
     const [position, setPosition] = useState({top: 200, left: 200});
     const [dodgeActive, setDodgeActive] = useState(false);
     const bgm = useRef(new Audio(backgroundMusic));
+    const buttonRef = useRef(null);
 
     const start = () => {
         bgm.current.loop = true;
@@ -23,28 +24,46 @@ function App() {
         return () => clearTimeout(timer);
     }, []);
 
-    const handleMouseMove= (e) => {
-        if (!dodgeActive) return;
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!dodgeActive || !buttonRef.current) return;
 
-        const mouseX = e.clientX;
-        const mouseY = e.clientY;
+            const button = buttonRef.current.getBoundingClientRect();
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
 
-        const buttonWidth = 128;
-        const buttonHeight = 48;
+            const buttonX = button.left + button.width / 2;
+            const buttonY = button.top + button.height / 2;
 
-        const buttonX = position.left + buttonWidth / 2;
-        const buttonY = position.top + buttonHeight / 2;
+            const distance = Math.hypot(mouseX - buttonX, mouseY - buttonY);
 
-        const distance = Math.sqrt(
-            (mouseX - buttonX) ** 2 + (mouseY - buttonY) ** 2
-        )
+            if (distance < 150) {
+                const angle = Math.atan2(buttonY - mouseY, buttonX - mouseX);
+                const moveX = Math.cos(angle) * 150;
+                const moveY = Math.sin(angle) * 150;
 
-        if (distance < 150) {
-            const newTop = Math.random() * (window.innerHeight - 50);
-            const newLeft = Math.random() * (window.innerWidth - 100);
-            setPosition({top: newTop, left: newLeft}); 
-        }
-    };
+                let newLeft = button.left + moveX;
+                let newTop = button.top + moveY;
+
+                const padding = 20; // prevent clipping offscreen
+                const maxLeft = window.innerWidth - button.width - padding;
+                const maxTop = window.innerHeight - button.height - padding;
+                const minLeft = padding;
+                const minTop = padding;
+
+                newLeft = Math.min(maxLeft, Math.max(minLeft, newLeft));
+                newTop = Math.min(maxTop, Math.max(minTop, newTop));
+
+                buttonRef.current.style.position = "fixed"; // fixed to viewport
+                buttonRef.current.style.left = `${newLeft}px`;
+                buttonRef.current.style.top = `${newTop}px`;
+                buttonRef.current.style.transition = "left 0.2s, top 0.2s";
+            }
+        };
+
+        window.addEventListener("mousemove", handleMouseMove);
+        return () => window.removeEventListener("mousemove", handleMouseMove);
+    }, [dodgeActive]);
 
     return (
         <div 
@@ -149,7 +168,7 @@ function App() {
                             <p className='text-white font-medium text-xl text-center'> do you accept? ( •̯́ ^ •̯̀)♡</p>
 
                             
-                            <div className='flex justify-center gap-4 mt-4'>
+                            <div className='relative flex justify-center gap-4 mt-4 w-full'>
                                 <button 
                                     onClick={() => {console.log("yes button clicked"); setClickedYes(true);}}
                                     className='bg-plum-web text-white font-bold py-2 px-4 rounded-lg border-2 border-white object-center w-32'
@@ -158,8 +177,8 @@ function App() {
                                 </button>
                                 
                                 <button 
+                                    ref={buttonRef}
                                     onClick={() => console.log("no button clicked")}
-                                    onMouseMove={handleMouseMove}
                                     className='bg-plum-web text-white font-bold py-2 px-4 rounded-lg border-2 border-white object-center w-32'
                                 >
                                     no {'(˙◠˙)'}
